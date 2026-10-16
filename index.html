@@ -175,6 +175,15 @@ body.has-install-bar #bookConfirmBar { bottom: 62px; }
   font-family: 'Cairo', sans-serif; font-size: 14px;
 }
 body.has-install-bar { padding-bottom: 80px; }
+/* العنوان والرقم في نفس الصف داخل بطاقات الإحصائيات */
+.stat-card{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.stat-label{margin-bottom:0}
+@media(max-width:600px){
+  .stat-card{padding:12px}
+  .stat-label{font-size:12px}
+  .stat-value{font-size:18px}
+}
+
 </style>
 </head>
 <body>
@@ -253,6 +262,15 @@ body.has-install-bar { padding-bottom: 80px; }
     <div class="form-field"><label>رقم هاتف إضافي (اختياري)</label><input type="tel" id="editPhone2"></div>
     <div class="form-field"><label>البريد الإلكتروني (اختياري)</label><input type="email" id="editEmail"></div>
     <div class="form-field"><label>الرقم المدني</label><input type="text" id="editCivilId"></div>
+     <div class="form-field" style="grid-column:1/-1"><hr style="border:none;border-top:1px solid #e2e8f0;margin:6px 0"><h4 style="color:#1e3a8a;margin-top:10px">🚙 بيانات السيارة</h4></div>
+    <div class="form-field" style="grid-column:1/-1"><label>تغيير السيارة (اختياري)</label>
+      <select id="editCarSelect" onchange="fillEditCar(this.value)"></select></div>
+    <div class="form-field"><label>وكالة السيارة</label><input type="text" id="editCarAgency"></div>
+    <div class="form-field"><label>اسم السيارة</label><input type="text" id="editCarName"></div>
+    <div class="form-field"><label>نوع السيارة</label><input type="text" id="editCarType"></div>
+    <div class="form-field"><label>الرقم والرمز</label><input type="text" id="editCarPlate"></div>
+    <div class="form-field"><label>رقم المفتاح</label><input type="text" id="editCarKey"></div>
+    <div class="form-field"><label>سعر الساعة</label><input type="number" id="editCarPrice" min="0" step="any" oninput="updateEditCalc()"></div>
     <div class="form-field"><label>تاريخ الاستلام</label><input type="datetime-local" id="editPickupDate" onchange="updateEditCalc()"></div>
     <div class="form-field"><label>تاريخ الإرجاع</label><input type="datetime-local" id="editReturnDate" onchange="updateEditCalc()"></div>
     <div class="form-field"><label>عدد الساعات</label><input type="text" id="editHoursDisplay" readonly></div>
@@ -457,7 +475,11 @@ function renderMyOrders(c) {
 
 function viewOrder(id) {
   const b = bookings.find(x => x.id === id); if (!b) return;
+  const isAdmin = currentUser?.role === "admin";
   const sep = '<hr style="margin:15px 0;border:none;border-top:1px solid #e2e8f0">';
+  const box = 'flex:1;min-width:260px;border:2px solid #e2e8f0;border-radius:12px;padding:14px;background:#f8fafc';
+  const boxTitle = 'color:#1e3a8a;margin-bottom:10px;font-size:15px';
+
   $("orderModalContent").innerHTML = `
     <div class="grid-2">
       <div><b>الاسم الثلاثي:</b> ${esc(b.fullName)}</div>
@@ -475,26 +497,34 @@ function viewOrder(id) {
       <div><b>حالة الاستلام:</b> ${receiveBadge(b.receiveStatus)}</div>
       <div><b>آخر تحديث للحالة:</b> ${esc(b.receiveUpdatedAt || "-")}</div>
     </div>
-    ${sep}<h4 style="color:#1e3a8a;margin-bottom:10px">🚙 بيانات السيارة</h4>
-    <div class="grid-2">
-      <div><b>الوكالة:</b> ${esc(b.car?.agency || "-")}</div>
-      <div><b>الاسم:</b> ${esc(b.car?.name || "-")}</div>
-      <div><b>النوع:</b> ${esc(b.car?.type || "-")}</div>
-      <div><b>الرقم والرمز:</b> ${esc(b.car?.plate || "-")}</div>
-      <div><b>رقم المفتاح:</b> ${esc(b.car?.keyNumber || "-")}</div>
-      <div><b>السعر/ساعة:</b> ${b.car?.price || 0} ريال</div>
-      <div><b>حالة الطلب:</b> ${statusBadge(b.status)}</div>
+    ${sep}
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">
+      <div style="${box}">
+        <h4 style="${boxTitle}">🚙 بيانات السيارة</h4>
+        <div style="display:grid;gap:8px;font-size:14px">
+          <div><b>الوكالة:</b> ${esc(b.car?.agency || "-")}</div>
+          <div><b>الاسم:</b> ${esc(b.car?.name || "-")}</div>
+          <div><b>النوع:</b> ${esc(b.car?.type || "-")}</div>
+          <div><b>الرقم والرمز:</b> ${esc(b.car?.plate || "-")}</div>
+          <div><b>رقم المفتاح:</b> ${esc(b.car?.keyNumber || "-")}</div>
+          <div><b>السعر/ساعة:</b> ${b.car?.price || 0} ريال</div>
+          <div><b>حالة الطلب:</b> ${statusBadge(b.status)}</div>
+        </div>
+      </div>
+      ${b.idCardImage ? `
+      <div style="${box};text-align:center">
+        <h4 style="${boxTitle};text-align:right">🪪 البطاقة الشخصية</h4>
+        <img src="${b.idCardImage}" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid #cbd5e1">
+      </div>` : ""}
     </div>
-    ${b.idCardImage ? `${sep}<h4 style="color:#1e3a8a;margin-bottom:10px">🪪 البطاقة الشخصية</h4><img src="${b.idCardImage}" style="max-width:300px;border-radius:8px;border:1px solid #cbd5e1">` : ""}
     <div class="actions">
-      ${b.status === "pending" ? `<button class="btn-save" style="background:#10b981" onclick="setStatus(${b.id},'approved');closeModal('orderModal')">✅ موافقة</button><button class="btn-save" style="background:#dc2626" onclick="setStatus(${b.id},'rejected');closeModal('orderModal')">❌ رفض</button>` : ""}
-      ${b.status === "approved" && remainingOf(b) > 0 ? `<button class="btn-save" style="background:#059669" onclick="markPaid(${b.id});closeModal('orderModal');showPage('orders')">💵 تسجيل الدفع كاملاً</button>` : ""}
-      ${currentUser?.role === "admin" && b.status === "pending" ? `...` : ""}
-      ${currentUser?.role === "admin" && b.status === "approved" && remainingOf(b) > 0 ? `...` : ""}
+      ${isAdmin && b.status === "pending" ? `<button class="btn-save" style="background:#10b981" onclick="setStatus(${b.id},'approved');closeModal('orderModal')">✅ موافقة</button><button class="btn-save" style="background:#dc2626" onclick="setStatus(${b.id},'rejected');closeModal('orderModal')">❌ رفض</button>` : ""}
+      ${isAdmin && b.status === "approved" && remainingOf(b) > 0 ? `<button class="btn-save" style="background:#059669" onclick="markPaid(${b.id});closeModal('orderModal');showPage('orders')">💵 تسجيل الدفع كاملاً</button>` : ""}
       <button class="btn-print" onclick="printDoc(${b.id},false)">🖨️ طباعة</button>
     </div>`;
   $("orderModal").classList.add("show");
 }
+
 function setStatus(id, status) {
   const b = bookings.find(x => x.id === id); if (!b) return;
   b.status = status; saveData(); showPage("orders");
@@ -643,6 +673,25 @@ function printDoc(id, invoice) {
   window.print();
 }
 
+
+/* ===== حفظ بيانات المستخدم العادي ===== */
+const PROFILE_FIELDS = ["fullName", "tribe", "phone", "phone2", "email", "civilId"];
+const profileKey = () => "profile_" + (currentUser?.phone || "");
+
+function loadProfile() {
+  try { return JSON.parse(localStorage.getItem(profileKey()) || "null") || {}; }
+  catch (e) { return {}; }
+}
+function saveProfile() {
+  const data = {};
+  PROFILE_FIELDS.forEach(f => data[f] = $(f).value.trim());
+  localStorage.setItem(profileKey(), JSON.stringify(data));
+}
+function fillProfile() {
+  const p = loadProfile();
+  PROFILE_FIELDS.forEach(f => { if (p[f] && $(f)) $(f).value = p[f]; });
+}
+
 /* ============ نموذج الحجز ============ */
 function renderBookingForm(c, isAdmin) {
   selectedCar = null;
@@ -682,10 +731,12 @@ function renderBookingForm(c, isAdmin) {
           <select id="adminOrderStatus"><option value="pending">⏳ قيد الانتظار</option><option value="approved" selected>✅ تم الموافقة</option><option value="rejected">❌ مرفوض</option></select></div>
         ` : `
         <div class="form-field"><label>حالة الاستلام</label><input type="text" id="receiveStatusUser" value="⏳ انتظار الاستلام" readonly disabled style="font-weight:bold;color:#92400e;background:#fef3c7"></div>
+      
         `}
       </div>
       <div class="actions"><button class="btn-save" onclick="saveBooking(${isAdmin})">💾 حفظ الحجز</button></div>
     </div>`;
+    if (!isAdmin) fillProfile();
 }
 function toggleCarList() {
   const box = $("carListBox"), open = box.style.display === "none";
@@ -725,6 +776,7 @@ function saveBooking(isAdmin) {
   if (!selectedCar) { alert("⚠️ الرجاء اختيار سيارة"); return; }
   const hours = hoursBetween(pickupDate, returnDate);
   if (!hours) { alert("⚠️ تاريخ الإرجاع يجب أن يكون بعد تاريخ الاستلام"); return; }
+    if (!isAdmin) saveProfile();
   const totalAmount = hours * selectedCar.price;
   const paidAmount = isAdmin ? (parseFloat($("paidAmount").value) || 0) : 0;
   if (paidAmount < 0 || paidAmount > totalAmount) { alert("⚠️ المبلغ المدفوع غير صحيح (أكبر من الإجمالي)"); return; }
@@ -787,26 +839,63 @@ function openEditOrder(id) {
   $("editStatus").value = b.status || "pending";
   $("editReceiveStatus").value = b.receiveStatus || "waiting";
   $("editReceiveUpdated").value = b.receiveUpdatedAt || "-";
+    $("editCarSelect").innerHTML = `<option value="">— إبقاء السيارة الحالية —</option>` +
+    cars.map(c => `<option value="${c.id}">${esc(c.name)} — ${esc(c.plate)}</option>`).join("");
+  $("editCarAgency").value = b.car?.agency || "";
+  $("editCarName").value = b.car?.name || "";
+  $("editCarType").value = b.car?.type || "";
+  $("editCarPlate").value = b.car?.plate || "";
+  $("editCarKey").value = b.car?.keyNumber || "";
+  $("editCarPrice").value = b.car?.price || 0;
   updateEditCalc();
   $("editOrderModal").classList.add("show");
 }
+
+function fillEditCar(carId) {
+  const c = cars.find(x => String(x.id) === String(carId));
+  if (!c) return;
+  $("editCarAgency").value = c.agency || "";
+  $("editCarName").value = c.name || "";
+  $("editCarType").value = c.type || "";
+  $("editCarPlate").value = c.plate || "";
+  $("editCarKey").value = c.keyNumber || "";
+  $("editCarPrice").value = c.price || 0;
+  updateEditCalc();
+}
+
 function updateEditCalc() {
-  const b = bookings.find(x => String(x.id) === $("editOrderId").value); if (!b) return;
   const hours = hoursBetween($("editPickupDate").value, $("editReturnDate").value);
-  const total = hours * (b.car?.price || 0), paid = parseFloat($("editPaidAmount").value) || 0;
+  const price = parseFloat($("editCarPrice").value) || 0;
+  const total = hours * price, paid = parseFloat($("editPaidAmount").value) || 0;
   $("editHoursDisplay").value = fmtHours(hours);
   $("editTotalDisplay").value = total + " ريال";
   $("editRemainingDisplay").value = Math.max(total - paid, 0) + " ريال";
 }
+
 function updateOrder() {
   const b = bookings.find(x => String(x.id) === $("editOrderId").value); if (!b) return;
   const pickupDate = $("editPickupDate").value, returnDate = $("editReturnDate").value;
   if (!pickupDate || !returnDate) { alert("⚠️ الرجاء إدخال التواريخ"); return; }
   const hours = hoursBetween(pickupDate, returnDate);
   if (!hours) { alert("⚠️ تاريخ الإرجاع يجب أن يكون بعد تاريخ الاستلام"); return; }
-  const totalAmount = hours * (b.car?.price || 0);
+
+  const carPrice = parseFloat($("editCarPrice").value) || 0;
+  const totalAmount = hours * carPrice;
   const paidAmount = parseFloat($("editPaidAmount").value) || 0;
   if (paidAmount < 0 || paidAmount > totalAmount) { alert("⚠️ المبلغ المدفوع غير صحيح (أكبر من الإجمالي)"); return; }
+
+  // السيارة: نسخة الطلب الحالية + التعديلات، وإذا اختير سيارة جديدة تتغير الصورة والمعرّف
+  const pickedCar = cars.find(x => String(x.id) === $("editCarSelect").value);
+  const car = {
+    ...(b.car || {}),
+    agency: $("editCarAgency").value.trim(),
+    name: $("editCarName").value.trim(),
+    type: $("editCarType").value.trim(),
+    plate: $("editCarPlate").value.trim(),
+    keyNumber: $("editCarKey").value.trim(),
+    price: carPrice
+  };
+  if (pickedCar) { car.id = pickedCar.id; car.img = pickedCar.img; }
 
   Object.assign(b, {
     fullName: $("editFullName").value.trim(), tribe: $("editTribe").value.trim(),
@@ -814,7 +903,8 @@ function updateOrder() {
     email: $("editEmail").value.trim(), civilId: $("editCivilId").value.trim(),
     pickupDate, returnDate, hours, totalAmount, paidAmount,
     paid: totalAmount > 0 && paidAmount >= totalAmount,
-    status: $("editStatus").value
+    status: $("editStatus").value,
+    car
   });
   const newReceive = $("editReceiveStatus").value;
   if (newReceive !== (b.receiveStatus || "waiting")) { b.receiveStatus = newReceive; b.receiveUpdatedAt = nowStamp(); }
