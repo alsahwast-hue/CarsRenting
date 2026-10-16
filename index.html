@@ -49,7 +49,15 @@ body{background:#f0f4f8;color:#1a202c;min-height:100vh}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
 @media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr 1fr}}
-@media(max-width:600px){.grid-2,.grid-3{grid-template-columns:1fr}}
+@media(max-width:600px){
+  .table-wrap.keep-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.data-table.keep-table{display:table;width:100%;min-width:1000px}
+  table.data-table.keep-table thead{display:table-header-group}
+  table.data-table.keep-table tbody{display:table-row-group}
+  table.data-table.keep-table tr{display:table-row;border:none;border-radius:0;margin:0;padding:0;background:transparent}
+  table.data-table.keep-table td{display:table-cell;width:auto;padding:12px 13px;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap!important}
+  table.data-table.keep-table td::before{content:none}
+}
 .car-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:15px}
 .car-item{border:2px solid #e2e8f0;border-radius:12px;padding:12px;cursor:pointer;transition:.2s;text-align:center;background:#f8fafc}
 .car-item:hover{border-color:#3b82f6}
@@ -200,6 +208,10 @@ body.has-install-bar { padding-bottom: 80px; }
     <div class="menu-item" data-page="addCar" onclick="showPage('addCar')"><div class="menu-icon">➕</div><div class="menu-label">إضافة سيارة</div></div>
     <div class="menu-item" data-page="invoices" onclick="showPage('invoices')"><div class="menu-icon">💰</div><div class="menu-label">الفواتير</div></div>
   </div>
+  <div class="admin-menu" id="userMenu" style="display:none">
+  <div class="menu-item" data-page="booking" onclick="showPage('booking')"><div class="menu-icon">📝</div><div class="menu-label">حجز جديد</div></div>
+  <div class="menu-item" data-page="myOrders" onclick="showPage('myOrders')"><div class="menu-icon">📋</div><div class="menu-label">طلباتي</div></div>
+</div>
   <div class="content" id="mainContent"></div>
   <div class="print-area" id="printArea"></div>
 </div>
@@ -344,6 +356,7 @@ function doLogin() {
   const admin = user.role === "admin";
   $("adminBadge").style.display = admin ? "inline-block" : "none";
   $("adminMenu").style.display = admin ? "flex" : "none";
+  $("userMenu").style.display = admin ? "none" : "flex";
   showPage(admin ? "orders" : "booking");
 }
 function doLogout() {
@@ -360,6 +373,7 @@ function showPage(page) {
   else if (page === "invoices") renderInvoicesPage(c);
   else if (page === "adminBooking") renderBookingForm(c, true);
   else if (page === "booking") renderBookingForm(c, false);
+  else if (page === "myOrders") renderMyOrders(c);
   labelTables();
 }
 function labelTables() {
@@ -392,7 +406,7 @@ function renderOrdersPage(c) {
     <div class="card">
       <div class="card-title">📋 قائمة الطلبات</div>
       ${bookings.length === 0 ? `<div class="empty-state"><div class="icon">📭</div><p>لا توجد طلبات حتى الآن</p></div>` : `
-      <div class="table-wrap"><table class="data-table">
+      <div class="table-wrap keep-table"><table class="data-table keep-table">
         <thead><tr><th>#</th><th>اسم العميل</th><th>الهاتف</th><th>السيارة</th><th>تاريخ الاستلام</th><th>الإجمالي</th><th>المدفوع</th><th>الباقي</th><th>الحالة</th><th>الاستلام</th><th>إجراءات</th></tr></thead>
         <tbody>${bookings.map((b, i) => `
           <tr>
@@ -411,6 +425,31 @@ function renderOrdersPage(c) {
               <button class="btn-sm btn-edit" onclick="openEditOrder(${b.id})">✏️ تعديل</button>
               <button class="btn-sm btn-delete" onclick="deleteOrder(${b.id})">🗑️</button>
             </td>
+          </tr>`).join("")}
+        </tbody></table></div>`}
+    </div>`;
+}
+
+
+function renderMyOrders(c) {
+  const mine = bookings.filter(b => b.ownerPhone === currentUser?.phone);
+  c.innerHTML = `
+    <div class="card">
+      <div class="card-title">📋 طلباتي</div>
+      ${mine.length === 0 ? `<div class="empty-state"><div class="icon">📭</div><p>لا توجد طلبات حتى الآن</p></div>` : `
+      <div class="table-wrap keep-table"><table class="data-table keep-table">
+        <thead><tr><th>#</th><th>السيارة</th><th>تاريخ الاستلام</th><th>الإجمالي</th><th>المدفوع</th><th>الباقي</th><th>الحالة</th><th>الاستلام</th><th>إجراء</th></tr></thead>
+        <tbody>${mine.map((b, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${esc(b.car?.name || "-")}</td>
+            <td>${b.pickupDate ? esc(b.pickupDate.replace("T", " ")) : "-"}</td>
+            <td><b>${b.totalAmount || 0} ريال</b></td>
+            <td>${paidOf(b)} ريال</td>
+            <td style="color:${remainingOf(b) ? "#dc2626" : "#059669"};font-weight:bold">${remainingOf(b)} ريال</td>
+            <td>${statusBadge(b.status)}</td>
+            <td>${receiveBadge(b.receiveStatus)}<div style="font-size:11px;color:#94a3b8;margin-top:3px">${esc(b.receiveUpdatedAt || "")}</div></td>
+            <td style="white-space:nowrap"><button class="btn-sm btn-view" onclick="viewOrder(${b.id})">👁️ عرض</button></td>
           </tr>`).join("")}
         </tbody></table></div>`}
     </div>`;
@@ -450,6 +489,8 @@ function viewOrder(id) {
     <div class="actions">
       ${b.status === "pending" ? `<button class="btn-save" style="background:#10b981" onclick="setStatus(${b.id},'approved');closeModal('orderModal')">✅ موافقة</button><button class="btn-save" style="background:#dc2626" onclick="setStatus(${b.id},'rejected');closeModal('orderModal')">❌ رفض</button>` : ""}
       ${b.status === "approved" && remainingOf(b) > 0 ? `<button class="btn-save" style="background:#059669" onclick="markPaid(${b.id});closeModal('orderModal');showPage('orders')">💵 تسجيل الدفع كاملاً</button>` : ""}
+      ${currentUser?.role === "admin" && b.status === "pending" ? `...` : ""}
+      ${currentUser?.role === "admin" && b.status === "approved" && remainingOf(b) > 0 ? `...` : ""}
       <button class="btn-print" onclick="printDoc(${b.id},false)">🖨️ طباعة</button>
     </div>`;
   $("orderModal").classList.add("show");
@@ -693,7 +734,8 @@ function saveBooking(isAdmin) {
   const finalize = img => {
     const id = bookings.length ? Math.max(...bookings.map(b => b.id)) + 1 : 1;
     bookings.push({
-      id, fullName, tribe: v("tribe"), phone, phone2: v("phone2"), email: v("email"), civilId,
+      id, ownerPhone: currentUser?.phone || "",
+      fullName, tribe: v("tribe"), phone, phone2: v("phone2"), email: v("email"), civilId,
       pickupDate, returnDate, hours, totalAmount, paidAmount,
       paid: totalAmount > 0 && paidAmount >= totalAmount,
       car: { ...selectedCar },
@@ -709,6 +751,8 @@ function saveBooking(isAdmin) {
   if (file) { const r = new FileReader(); r.onload = e => finalize(e.target.result); r.readAsDataURL(file); }
   else finalize("");
 }
+
+
 function showSuccessMessage(orderId, isAdmin) {
   const o = document.createElement("div");
   o.className = "ok-overlay";
